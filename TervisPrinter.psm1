@@ -12,10 +12,31 @@
     }
 }
 
-
 Function Get-TervisPrinter {
     Get-Printer -ComputerName disney |
     Add-PrinterMetadataMember -PassThrough
+}
+
+Function Set-TervisPrinterMetadataMember {
+    param (
+        [Parameter(Mandatory,ValueFromPipelineByPropertyName)]
+        $Name,
+        
+        [ValidateSet("HP","Zebra","Kyocera","Brother","Konica","Evolis","Epson","Highlight Technologies Inc")]
+        $Vendor,
+
+        $Model,
+        
+        [ValidateSet("Gulf Business Systems","Tervis")]
+        $ServicedBy
+    )
+    $Paramaters = $PSBoundParameters
+
+    $MetaDataProperties = $Paramaters | 
+    ConvertFrom-PSBoundParameters | 
+    select -Property * -ExcludeProperty Name
+
+    Set-Printer -ComputerName Disney -Name $Name -Comment $($MetaDataProperties | ConvertTo-JSON)
 }
 
 Function Get-TervisPrinterLifeTimePageCount {
