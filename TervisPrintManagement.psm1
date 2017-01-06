@@ -51,3 +51,13 @@ $snmp.gettree("43.11.1.1.8.1")
 $printertype = $snmp.Get(".1.3.6.1.2.1.25.3.2.1.3.1")
 $snmp.get(".1.3.6.1.2.1.43.10.2.1.4.1.1")  
 }
+
+function Update-PrinterLocation {
+    param(
+        [parameter(Mandatory = $true)]$PrinterToUpdate,
+        [parameter(Mandatory = $true)]$NewPrinterLocation,
+        $PrintServer = "Disney.tervis.prv"
+    )
+
+    Set-Printer -Name $PrinterToUpdate -ComputerName $PrintServer -Location $NewPrinterLocation
+}
