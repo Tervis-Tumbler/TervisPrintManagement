@@ -61,3 +61,15 @@ function Update-PrinterLocation {
 
     Set-Printer -Name $PrinterToUpdate -ComputerName $PrintServer -Location $NewPrinterLocation
 }
+
+function Set-ZebraDriversToPackaged {
+    Set-Location -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Print\Environments\Windows x64\Drivers\Version-3'    
+    Get-ChildItem -Name Z* | 
+        ForEach-Object {    
+            $Driver = Get-ItemProperty -Path $_ -Name PrinterDriverAttributes
+            if ($Driver.PrinterDriverAttributes -eq 0) {        
+                Write-Host "$($Driver.PSChildName) is not packaged. Setting status to `"packaged.`""
+                Set-ItemProperty -Path $Driver.PSChildName -Name PrinterDriverAttributes -Value 1
+            }    
+        }
+}
