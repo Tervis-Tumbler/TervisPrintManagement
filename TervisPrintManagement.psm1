@@ -14,7 +14,8 @@
 
 Function Get-TervisPrinter {
     Get-Printer -ComputerName disney |
-    Add-PrinterMetadataMember -PassThrough
+    Add-PrinterMetadataMember -PassThrough |
+    Where-Object DeviceType -eq Print
 }
 
 Function Set-TervisPrinterMetadataMember {
