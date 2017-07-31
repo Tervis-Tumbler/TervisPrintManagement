@@ -8,13 +8,31 @@
         foreach ($Property in $PrinterMetadata.psobject.Properties) {
             $Printer | Add-Member -MemberType NoteProperty -Name $($Property.Name) -Value $($Property.Value)
         }
+
         if($PassThrough) { $Printer }
     }
 }
 
+function Add-TervisPrinterCustomProperites {
+    param(
+        [Switch]$PassThrough,
+        [Parameter(ValueFromPipeline, Mandatory)]$Printer
+    )
+    process {
+        $Printer | Add-Member -MemberType ScriptProperty -Name PageCount -Value {
+            Get-PrinterPageCount -Name $this.Name
+        }
+
+        $Printer | Add-PrinterMetadataMember
+
+        if($PassThrough) { $Printer }
+    }
+}
+
+
 Function Get-TervisPrinter {
     Get-Printer -ComputerName disney |
-    Add-PrinterMetadataMember -PassThrough |
+    Add-TervisPrinterCustomProperites -PassThrough |
     Where-Object DeviceType -eq Print
 }
 
@@ -41,7 +59,24 @@ Function Set-TervisPrinterMetadataMember {
 }
 
 Function Get-TervisPrinterLifeTimePageCount {
+
+    $Printers = Get-TervisPrinter
+    
+    $GBSPrinters = $Printers |
+    Where-Object ServicedBy -EQ "Gulf Business Systems"
+
     $SNMP = new-object -ComObject olePrn.OleSNMP
+
+    foreach ($Printer in $GBSPrinters| where Vendor -eq HP) {
+        $Printer.Name
+        $snmp.open($Printer.Name,"public",2,3000)
+        $snmp.gettree("43.11.1.1.8.1")
+        $printertype = $snmp.Get(".1.3.6.1.2.1.25.3.2.1.3.1")
+        $printertype
+        $snmp.get(".1.3.6.1.4.1.11.2.3.9.4.2.1.4.1.2.6")
+        #$snmp.get(".1.3.6.1.2.1.43.10.2.1.4.1.1")  
+
+    }
 
     $snmp.open("10.172.28.13","public",2,3000)
     $snmp.gettree("43.11.1.1.8.1")
@@ -51,6 +86,59 @@ Function Get-TervisPrinterLifeTimePageCount {
     $snmp.gettree("43.11.1.1.8.1")
     $printertype = $snmp.Get(".1.3.6.1.2.1.25.3.2.1.3.1")
     $snmp.get(".1.3.6.1.2.1.43.10.2.1.4.1.1")  
+}
+
+function Get-PrinterSNMPProperties {
+    param (
+        [Parameter(Mandatory)]$Name
+    )
+    $SNMP = new-object -ComObject olePrn.OleSNMP
+    $SNMP.open($Name,"public",2,3000)
+    $Result = $SNMP.gettree("printmib")
+    ConvertFrom-TwoDimensionalArray -Array $Result
+    $SNMP.Close()
+}
+
+function Get-PrinterPageCount {
+    param (
+        [Parameter(Mandatory)]$Name
+    )
+    $PrinterProperties = Get-PrinterSNMPProperties -Name $Name
+    $PrinterProperties."printmib.prtMarker.prtMarkerTable.prtMarkerEntry.prtMarkerLifeCount.1.1"
+}
+
+function Get-SNMPTreeWalk {
+    param (
+        [Parameter(Mandatory)]$ComputerName
+    )
+
+    $SNMP = new-object -ComObject olePrn.OleSNMP
+    $SNMP.open($ComputerName,"public",2,3000)
+    1..1000 | % {
+        $Result = $SNMP.gettree($_)
+        if ($Result) {
+            ConvertFrom-TwoDimensionalArray -Array $Result
+        }
+    }    
+    $SNMP.Close()
+}
+
+
+function ConvertFrom-TwoDimensionalArray {
+    param (
+        [Parameter(Mandatory)]$Array
+    )
+
+    $NumberOfDimensions = $Array.Rank
+    if ($NumberOfDimensions -gt 2 ) { Throw "Array has more than 2 dimensions" }
+    
+    $Object = [PSCustomObject]@{}
+    
+    foreach ($ElementIndex in 0..($Array.GetLength(1)-1)) {
+        $Object | Add-Member -MemberType NoteProperty -Name $Array[0,$ElementIndex] -Value $Array[1,$ElementIndex]
+    }
+
+    $Object
 }
 
 function Update-PrinterLocation {
