@@ -103,8 +103,16 @@ function Get-PrinterPageCount {
     param (
         [Parameter(Mandatory)]$Name
     )
-    $PrinterProperties = Get-PrinterSNMPProperties -Name $Name
-    $PrinterProperties."printmib.prtMarker.prtMarkerTable.prtMarkerEntry.prtMarkerLifeCount.1.1"
+    if (Test-Connection -ComputerName $Name -Count 1 -BufferSize 16 -Delay 1 -quiet -ErrorAction SilentlyContinue) {
+        $PrinterProperties = Get-PrinterSNMPProperties -Name $Name
+        $PrinterProperties."printmib.prtMarker.prtMarkerTable.prtMarkerEntry.prtMarkerLifeCount.1.1"
+    }
+}
+
+function Get-GBSPrintCounts {
+    Get-TervisPrinter | 
+    where ServicedBy -eq "Gulf Business Systems" | 
+    select Name, PageCount
 }
 
 function Update-PrinterLocation {
