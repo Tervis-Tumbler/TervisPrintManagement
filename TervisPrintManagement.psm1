@@ -163,3 +163,15 @@ function Set-AllPrinterDriversToPackaged {
         }
     } | select -Property Name,DriverVersion,OldPrinterDriverAttributes,NewPrinterDriverAttributes 
 }
+
+function Invoke-FixBravesNotPrinting {
+    $Service = get-service -Name lpdsvc -ComputerName disney
+    if ($Service.status -ne "Running") {
+        $Service | Restart-Service
+    }
+    
+    $Service = get-service -Name lpdsvc -ComputerName disney
+    if ($Service.status -ne "Running") {
+        Throw "Tried to start lpdsvc but the service is still not running"
+    }
+}
