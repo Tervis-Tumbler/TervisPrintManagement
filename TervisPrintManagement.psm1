@@ -175,3 +175,48 @@ function Invoke-FixBravesNotPrinting {
         Throw "Tried to start lpdsvc but the service is still not running"
     }
 }
+
+function Add-TervisPrinter {
+    param(
+        [Parameter(Mandatory, ValueFromPipelineByPropertyName)]$Name,
+        [Parameter(Mandatory, ValueFromPipelineByPropertyName)]$DriverName,
+        [Parameter(Mandatory)]$ComputerName,
+        [Switch]$Shared,
+        [Switch]$Force
+    )
+    process {
+        Add-PrinterDriver -Name $DriverName -ComputerName $ComputerName
+        if ($Force) {
+            Remove-Printer -Name $Name -ComputerName $ComputerName -ErrorAction SilentlyContinue
+            Remove-PrinterPort -Name $Name -ComputerName $ComputerName -ErrorAction SilentlyContinue
+        }        
+        Add-PrinterPort -Name $Name -PrinterHostAddress $Name -ComputerName $ComputerName -ErrorAction SilentlyContinue
+        if ($Shared) {
+            Add-Printer -PortName $Name -Name $Name -DriverName $DriverName -ComputerName $ComputerName -ErrorAction SilentlyContinue -Shared -ShareName $Name
+        } else {
+            Add-Printer -PortName $Name -Name $Name -DriverName $DriverName -ComputerName $ComputerName -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Remove-TervisPrinter {
+    param(
+        [Parameter(Mandatory, ValueFromPipelineByPropertyName)]$Name,
+        [Parameter(Mandatory)]$ComputerName
+    )
+    begin {
+        $ComputerNameParameter = $PSBoundParameters | 
+        ConvertFrom-PSBoundParameters | 
+        where ComputerName
+    }
+    process {
+        if ($ComputerName) {
+            Remove-Printer -Name $Name -ComputerName $ComputerName 
+            Remove-PrinterPort -Name $Name -ComputerName $ComputerName
+        } else {
+            Remove-Printer -Name $Name
+            Remove-PrinterPort -Name $Name
+        }
+    }
+}
+
