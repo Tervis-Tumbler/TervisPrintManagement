@@ -140,28 +140,29 @@ function Set-ZebraDriversToPackaged {
 function Set-AllPrinterDriversToPackaged {
     # PrinterDriverAttributes is defined by DRIVER_INFO_8 struct: https://msdn.microsoft.com/en-us/library/windows/desktop/dd162507(v=vs.85).aspx
     param (
-        [Parameter(Mandatory=$true)]$ComputerName
+        [Parameter(Mandatory,ValueFromPipelineByPropertyName)]$ComputerName
     )
-    
-    Invoke-Command -ComputerName $ComputerName -ScriptBlock {
-        Set-Location -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Print\Environments\Windows x64\Drivers\Version-3"
+    process {
+        Invoke-Command -ComputerName $ComputerName -ScriptBlock {
+            Set-Location -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Print\Environments\Windows x64\Drivers\Version-3"
 
-        $PrinterDriversNotSetAsPackage = Get-ChildItem | 
-            Get-ItemProperty -Name PrinterDriverAttributes,DriverVersion | 
-            where {($_.PrinterDriverAttributes -band 1) -eq 0} | 
-            select PSChildName,DriverVersion,PrinterDriverAttributes
+            $PrinterDriversNotSetAsPackage = Get-ChildItem | 
+                Get-ItemProperty -Name PrinterDriverAttributes,DriverVersion | 
+                where {($_.PrinterDriverAttributes -band 1) -eq 0} | 
+                select PSChildName,DriverVersion,PrinterDriverAttributes
 
-        foreach ($PrinterDriver in $PrinterDriversNotSetAsPackage) {
-            $NewPrinterDriverAttributeValue = $PrinterDriver.PrinterDriverAttributes -bor 1
-            Set-ItemProperty -Path $PrinterDriver.PSChildName -Name PrinterDriverAttributes -Value $NewPrinterDriverAttributeValue
-            New-Object -TypeName PSObject -Property @{
-                Name = $PrinterDriver.PSChildName
-                DriverVersion = $PrinterDriver.DriverVersion
-                OldPrinterDriverAttributes = $PrinterDriver.PrinterDriverAttributes
-                NewPrinterDriverAttributes = $NewPrinterDriverAttributeValue
+            foreach ($PrinterDriver in $PrinterDriversNotSetAsPackage) {
+                $NewPrinterDriverAttributeValue = $PrinterDriver.PrinterDriverAttributes -bor 1
+                Set-ItemProperty -Path $PrinterDriver.PSChildName -Name PrinterDriverAttributes -Value $NewPrinterDriverAttributeValue
+                New-Object -TypeName PSObject -Property @{
+                    Name = $PrinterDriver.PSChildName
+                    DriverVersion = $PrinterDriver.DriverVersion
+                    OldPrinterDriverAttributes = $PrinterDriver.PrinterDriverAttributes
+                    NewPrinterDriverAttributes = $NewPrinterDriverAttributeValue
+                }
             }
-        }
-    } | select -Property Name,DriverVersion,OldPrinterDriverAttributes,NewPrinterDriverAttributes 
+        } | select -Property Name,DriverVersion,OldPrinterDriverAttributes,NewPrinterDriverAttributes
+    }
 }
 
 function Invoke-FixBravesNotPrinting {
