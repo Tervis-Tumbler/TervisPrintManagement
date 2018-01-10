@@ -6,7 +6,7 @@
     process {
         $PrinterMetadata = try {$Printer.comment | convertfrom-json} catch {}
         foreach ($Property in $PrinterMetadata.psobject.Properties) {
-            $Printer | Add-Member -MemberType NoteProperty -Name $($Property.Name) -Value $($Property.Value)
+            $Printer | Add-Member -MemberType NoteProperty -Name $($Property.Name) -Value $($Property.Value) -Force
         }
 
         if($PassThrough) { $Printer }
@@ -19,7 +19,7 @@ function Add-TervisPrinterCustomProperites {
         [Parameter(ValueFromPipeline, Mandatory)]$Printer
     )
     process {
-        $Printer | Add-Member -MemberType ScriptProperty -Name PageCount -Value {
+        $Printer | Add-Member -MemberType ScriptProperty -Force -Name PageCount -Value {
             Get-PrinterPageCount -Name $this.Name
         }
 
@@ -70,7 +70,7 @@ Function Set-TervisPrinterMetadataMember {
     $ExistingMetatDataPropertiesToInclude = Get-TervisPrinter -Name $Name | 
     Select-Object -ExpandProperty Comment |
     ConvertFrom-Json |
-    Select-Object -ExcludeProperty $MetaDataPropertyNames
+    Select-Object -Property * -ExcludeProperty $MetaDataPropertyNames
     
     $CombinedMetaDataProperties = $MetaDataProperties, $ExistingMetatDataPropertiesToInclude | Merge-Object
     
