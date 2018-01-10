@@ -129,8 +129,20 @@ function Get-PrinterPageCount {
 }
 
 function Get-GBSPrintCounts {
-    Get-TervisPrinter | 
-    where ServicedBy -eq "Gulf Business Systems" | 
+    param (
+        [Switch]$DisableWakeupPrints
+    )
+
+    $GBSPrinters = Get-TervisPrinter | 
+    where ServicedBy -eq "Gulf Business Systems" 
+    
+    $GBSPrinters |
+    Where-Object {-Not $DisableWakeupPrints} |
+    ForEach-Object {
+       "Test print, please recycle" | Out-Printer -Name "\\Disney\$($_.Name)"
+    }
+
+    $GBSPrinters | 
     select Name, PageCount
 }
 
