@@ -31,7 +31,11 @@ function Add-TervisPrinterCustomProperites {
 
 
 Function Get-TervisPrinter {
+    param (
+        $Name
+    )
     Get-Printer -ComputerName disney |
+    Where-Object { -not $Name -or $_.Name -eq $Name} |
     Add-TervisPrinterCustomProperites -PassThrough |
     Where-Object DeviceType -eq Print
 }
@@ -47,7 +51,13 @@ Function Set-TervisPrinterMetadataMember {
         $Model,
         
         [ValidateSet("Gulf Business Systems","Tervis")]
-        $ServicedBy
+        $ServicedBy,
+        
+        $MacAddress,
+        [ValidateSet("Direct-Thermal","Thermal-Transfer")]$MediaType,
+        $LabelWidth,
+        $LabelHeight,
+        [ValidateSet(203,300,600)]$DPI
     )
     $Paramaters = $PSBoundParameters
 
@@ -55,7 +65,16 @@ Function Set-TervisPrinterMetadataMember {
     ConvertFrom-PSBoundParameters | 
     select -Property * -ExcludeProperty Name
 
-    Set-Printer -ComputerName Disney -Name $Name -Comment $($MetaDataProperties | ConvertTo-JSON)
+    $MetaDataPropertyNames = $MetaDataProperties | Get-PropertyName
+
+    $ExistingMetatDataPropertiesToInclude = Get-TervisPrinter -Name $Name | 
+    Select-Object -ExpandProperty Comment |
+    ConvertFrom-Json |
+    Select-Object -ExcludeProperty $MetaDataPropertyNames
+    
+    $CombinedMetaDataProperties = $MetaDataProperties, $ExistingMetatDataPropertiesToInclude | Merge-Object
+    
+    Set-Printer -ComputerName Disney -Name $Name -Comment $($CombinedMetaDataProperties | ConvertTo-JSON)
 }
 
 Function Get-TervisPrinterLifeTimePageCount {
