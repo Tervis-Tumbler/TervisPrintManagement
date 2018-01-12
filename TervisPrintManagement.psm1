@@ -234,11 +234,6 @@ function Remove-TervisPrinter {
         [Parameter(Mandatory, ValueFromPipelineByPropertyName)]$Name,
         [Parameter(Mandatory)]$ComputerName
     )
-    begin {
-        $ComputerNameParameter = $PSBoundParameters | 
-        ConvertFrom-PSBoundParameters | 
-        where ComputerName
-    }
     process {
         if ($ComputerName) {
             Remove-Printer -Name $Name -ComputerName $ComputerName 
