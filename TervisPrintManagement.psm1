@@ -53,17 +53,15 @@ Function Set-TervisPrinterMetadataMember {
         [ValidateSet("Gulf Business Systems","Tervis")]
         $ServicedBy,
         
-        $MacAddress,
+        $WiredMacAddress,
+        $WirelessMacAddress,
         [ValidateSet("Direct-Thermal","Thermal-Transfer")]$MediaType,
         $LabelWidth,
         $LabelHeight,
         [ValidateSet(203,300,600)]$DPI
     )
-    $Paramaters = $PSBoundParameters
-
-    $MetaDataProperties = $Paramaters | 
-    ConvertFrom-PSBoundParameters | 
-    select -Property * -ExcludeProperty Name
+    $MetaDataProperties = $PSBoundParameters | 
+    ConvertFrom-PSBoundParameters -ExcludeProperty Name
 
     $MetaDataPropertyNames = $MetaDataProperties | Get-PropertyName
 
