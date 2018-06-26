@@ -21,7 +21,7 @@ function Add-TervisPrinterCustomProperites {
     process {
         $Printer | Add-Member -MemberType ScriptProperty -Force -Name PageCount -Value {
             if ($this.Model -eq "TASKalfa 500ci") {
-                $Result = Invoke-WebRequest -Uri "http://carpediem/start/StatCntFunc.htm"
+                $Result = Invoke-WebRequest -Uri "http://$($This.Name)/start/StatCntFunc.htm"
                 
                 ($Result.content -split "`r`n") | 
                 Where-Object { $_ -match "var monochrome_total = " } |
