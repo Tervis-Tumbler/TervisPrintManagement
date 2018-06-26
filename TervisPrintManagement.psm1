@@ -20,7 +20,18 @@ function Add-TervisPrinterCustomProperites {
     )
     process {
         $Printer | Add-Member -MemberType ScriptProperty -Force -Name PageCount -Value {
-            Get-PrinterPageCount -Name $this.Name
+            if ($this.Model -eq "TASKalfa 500ci") {
+                $Result = Invoke-WebRequest -Uri "http://carpediem/start/StatCntFunc.htm"
+                
+                ($Result.content -split "`r`n") | 
+                Where-Object { $_ -match "var monochrome_total = " } |
+                ForEach-Object {$_ -replace "var ", "$"} | 
+                Invoke-Expression
+
+                $monochrome_total
+            } else {
+                Get-PrinterPageCount -Name $this.Name
+            }            
         }
 
         $Printer | Add-PrinterMetadataMember
@@ -141,7 +152,7 @@ function Get-GBSPrintCounts {
     }
 
     $GBSPrinters | 
-    select Name, PageCount
+    Select-Object -Property Name, PageCount, Model
 }
 
 function Update-PrinterLocation {
