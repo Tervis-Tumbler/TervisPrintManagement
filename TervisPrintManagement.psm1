@@ -20,18 +20,20 @@ function Add-TervisPrinterCustomProperites {
     )
     process {
         $Printer | Add-Member -MemberType ScriptProperty -Force -Name PageCount -Value {
-            if ($this.Model -eq "TASKalfa 500ci") {
-                $Result = Invoke-WebRequest -Uri "http://$($This.Name)/start/StatCntFunc.htm"
-                
-                ($Result.content -split "`r`n") | 
-                Where-Object { $_ -match "var monochrome_total = " } |
-                ForEach-Object {$_ -replace "var ", "$"} | 
-                Invoke-Expression
-
-                $monochrome_total
-            } else {
-                Get-PrinterPageCount -Name $this.Name
-            }            
+            if ($this.PrinterStatus -notmatch "Offline") {
+                if ($this.Model -eq "TASKalfa 500ci") {
+                    $Result = Invoke-WebRequest -Uri "http://$($This.Name)/start/StatCntFunc.htm"
+                    
+                    ($Result.content -split "`r`n") | 
+                    Where-Object { $_ -match "var monochrome_total = " } |
+                    ForEach-Object {$_ -replace "var ", "$"} | 
+                    Invoke-Expression
+    
+                    $monochrome_total
+                } else {
+                    Get-PrinterPageCount -Name $this.Name
+                }    
+            }
         }
 
         $Printer | Add-PrinterMetadataMember
@@ -143,16 +145,23 @@ function Get-GBSPrintCounts {
     )
 
     $GBSPrinters = Get-TervisPrinter | 
-    where ServicedBy -eq "Gulf Business Systems" 
-    
-    $GBSPrinters |
-    Where-Object {-Not $DisableWakeupPrints} |
-    ForEach-Object {
-       "Test print, please recycle" | Out-Printer -Name "\\Disney\$($_.Name)"
+    where ServicedBy -eq "Gulf Business Systems"
+
+    if (-Not $DisableWakeupPrints) {
+        Start-ParallelWork -Parameters (
+            $GBSPrinters | 
+            Where-Object PrinterStatus -NotMatch Offline | 
+            Select-Object -ExpandProperty Name
+        ) -ScriptBlock {
+            param (
+                $PrinterName
+            )
+            "Test print, please recycle" | Out-Printer -Name "\\Disney\$PrinterName"
+        } 
     }
 
     $GBSPrinters | 
-    Select-Object -Property Name, PageCount, Model
+    Select-Object -Property Name, PageCount, Model, PrinterStatus
 }
 
 function Update-PrinterLocation {
