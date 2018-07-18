@@ -149,18 +149,18 @@ function Get-GBSPrintCounts {
 
     if (-Not $DisableWakeupPrints) {
         Start-ParallelWork -Parameters (
-            $GBSPrinters | 
-            Where-Object PrinterStatus -NotMatch Offline | 
+            $GBSPrinters |
+            Where-Object PrinterStatus -NotMatch Offline |
             Select-Object -ExpandProperty Name
         ) -ScriptBlock {
             param (
                 $PrinterName
             )
-            "Test print, please recycle" | Out-Printer -Name "\\Disney\$PrinterName"
-        } 
+            Send-TCPClientData -ComputerName $PrinterName -Port 9100 -Data "Wake up printer text" -NoReply
+        }
     }
 
-    $GBSPrinters | 
+    $GBSPrinters |
     Select-Object -Property Name, PageCount, Model, PrinterStatus
 }
 
