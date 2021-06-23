@@ -49,8 +49,8 @@ Function Get-TervisPrinter {
     )
     Get-Printer -ComputerName disney |
     Where-Object { -not $Name -or $_.Name -eq $Name} |
-    Add-TervisPrinterCustomProperites -PassThrough |
-    Where-Object DeviceType -eq Print
+    Where-Object DeviceType -eq Print | 
+    Add-TervisPrinterCustomProperites -PassThrough
 }
 
 Function Set-TervisPrinterMetadataMember {
@@ -73,19 +73,22 @@ Function Set-TervisPrinterMetadataMember {
         $LabelHeight,
         [ValidateSet(203,300,600)]$DPI
     )
-    $MetaDataProperties = $PSBoundParameters | 
-    ConvertFrom-PSBoundParameters -ExcludeProperty Name
-
-    $MetaDataPropertyNames = $MetaDataProperties | Get-PropertyName
-
-    $ExistingMetatDataPropertiesToInclude = Get-TervisPrinter -Name $Name | 
-    Select-Object -ExpandProperty Comment |
-    ConvertFrom-Json |
-    Select-Object -Property * -ExcludeProperty $MetaDataPropertyNames
+    process {
+        Write-Progress -Activity "Set-TervisPrinterMetadataMember" -CurrentOperation "Adding metadata to $Name"
+        $MetaDataProperties = $PSBoundParameters | 
+        ConvertFrom-PSBoundParameters -ExcludeProperty Name
     
-    $CombinedMetaDataProperties = $MetaDataProperties, $ExistingMetatDataPropertiesToInclude | Merge-Object
+        $MetaDataPropertyNames = $MetaDataProperties | Get-PropertyName
     
-    Set-Printer -ComputerName Disney -Name $Name -Comment $($CombinedMetaDataProperties | ConvertTo-JSON)
+        $ExistingMetatDataPropertiesToInclude = Get-TervisPrinter -Name $Name | 
+        Select-Object -ExpandProperty Comment |
+        ConvertFrom-Json |
+        Select-Object -Property * -ExcludeProperty $MetaDataPropertyNames
+        
+        $CombinedMetaDataProperties = $MetaDataProperties, $ExistingMetatDataPropertiesToInclude | Merge-Object
+        
+        Set-Printer -ComputerName Disney -Name $Name -Comment $($CombinedMetaDataProperties | ConvertTo-JSON)
+    }
 }
 
 Function Get-TervisPrinterLifeTimePageCount {
@@ -156,7 +159,11 @@ function Get-GBSPrintCounts {
             param (
                 $PrinterName
             )
-            Send-TCPClientData -ComputerName $PrinterName -Port 9100 -Data "Wake up printer text" -NoReply
+            try {
+                Send-TCPClientData -ComputerName $PrinterName -Port 9100 -Data "Wake up printer text" -NoReply
+            } catch {
+                Write-Warning "No response from $PrinterName"
+            }
         }
     }
 
@@ -265,3 +272,50 @@ function Remove-TervisPrinter {
     }
 }
 
+function Get-TervisZebraPrinterPropertiesFromConfigPage {
+    param (
+        [Parameter(Mandatory,ValueFromPipelineByPropertyName)]$Name
+    )
+    process {
+        $URL = "http://$Name/config.html"
+        try {
+            $ConfigPage = Invoke-WebRequest $URL        
+        } catch {
+            throw "Could not get to config page for $Name"
+        }
+
+        $PreTag = $ConfigPage.ParsedHtml.body.all | Where-Object tagname -eq "PRE"
+        
+        $Properties = $PreTag.innerText -split "`n" | 
+            ForEach-Object { $_.Trim() } |
+            Select-Object -Skip 1
+        
+        $PrintMethod = $Properties |
+            Where-Object {$_ -like "*PRINT METHOD"} |
+            Split-String " " |
+            Select-Object -First 1
+
+        switch ($PrintMethod) {
+            "DIRECT-THERMAL" { $MediaType = "Direct-Thermal"; break }
+            "THERMAL-TRANS." { $MediaType = "Thermal-Transfer"; break }
+            Default { throw "No media type for $Name" }
+        }
+
+        [int]$LabelWidth = $Properties |
+            Where-Object {$_ -like "*PRINT WIDTH"} |
+            Split-String " " |
+            Select-Object -First 1
+ 
+        [int]$LabelHeight = $Properties |
+            Where-Object {$_ -like "*LABEL LENGTH"} |
+            Split-String " " |
+            Select-Object -First 1
+
+        return [PSCustomObject]@{
+            Name = $Name
+            MediaType = $MediaType
+            LabelWidth = $LabelWidth
+            LabelHeight = $LabelHeight
+        }
+    }
+}
