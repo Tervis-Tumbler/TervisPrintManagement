@@ -47,7 +47,10 @@ Function Get-TervisPrinter {
     param (
         $Name
     )
-    Get-Printer -ComputerName disney |
+    $PrintServers = "disney","INF-PrintSrv01","INF-PrintSrv02"
+
+    $PrintServers |
+    ForEach-Object {Get-Printer -ComputerName $_} |
     Where-Object { -not $Name -or $_.Name -eq $Name} |
     Where-Object DeviceType -eq Print | 
     Add-TervisPrinterCustomProperites -PassThrough
